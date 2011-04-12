@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+	<!-- 
+	Email rule examples:
+	The email rules are applied in order to each email based on the regular expression (envelopeFromRex, envelopeToRex and ipFromRex) matches.
+	If a processed rule has the 'isFinalRule' set to 'true' then no more rules are processed.
+	If no rules are matched, then the default rule is processed if it exists ('isDefault' = 'true').
+	-->
+	
+	<!-- Forward all emails, using the original envelope-from -->
+	<rule name="Rule-EmailForwardFull">
+		<forward envelopeTo="[envelopeTo]" />
+	</rule>
+	
+	<!--  Forward all emails, using a new envelope-from -->
+	<rule name="Rule-EmailForward">
+		<forward envelopeFrom="admin@mydomain.co.uk" envelopeTo="[envelopeTo]" />
+	</rule>
+	
+	<!-- Redirect all emails to a group of users and change the subject to show where it should've been sent -->
+	<rule name="Rule-ChangeSubject">
+		<header name="subject" value="[subject] (redirected from [envelopeTo])" />
+		<forward envelopeTo="[group:TestGroup]" />
+	</rule>
+	<group name="Testgroup">
+		<email>email1@domain.com</email>
+		<email>email2@domain.com</email>
+	</group>
+	
+	<!-- Forward emails to different destinations based on their originating IP addresses -->
+	<rule name="Rule-IP1" ipFromRex="192\.168\.0\.10">
+		<forward envelopeTo="person1@domain.com" />
+	</rule>
+	<rule name="Rule-IP2" ipFromRex="192\.168\.0\.11">
+		<forward envelopeTo="person2@domain.com" />
+	</rule>
+	
+	<!-- Archive emails in the file system when sent to a specific email address (sort emails by envelope-from name) -->
+	<rule name="Rule-Archive" envelopeToRex="archive@domain\.com">
+		<fileStore filePath="/var/opt/raston/archive/[envelopeFrom.name]/[id].txt" />
+	</rule>	
+	
+	<!-- Ensure emails from jim@domain1 got to jim@domain2 and emails from fred@domain1 go to fred@domain2. Anything else goes to admin@domain2  -->
+	<rule name="Rule-FromJim" envelopeFromRex="jim@domain1\.com" isFinalRule="true">
+		<forward envelopeTo="jim@domain2.com" />
+	</rule>
+	<rule name="Rule-FromFred" envelopeFromRex="fred@domain1\.com" isFinalRule="true">
+		<forward envelopeTo="fred@domain2.com" />
+	</rule>
+	<rule name="Rule-Default" isDefault="true">
+		<forward envelopeTo="admin@domain2.com" />
+	</rule>
+	
+	<!-- Log all emails sent to postgres@domain.org to a Postgres DB -->
+	<rule name="Rule-PostgresDB" envelopeToRex="postgres@domain\.org">
+		<databaseStore connectionString="jdbc:postgresql://SERVER/DATABASE?user=XXX&amp;password=YYY" tableName="emaillog">
+			<fieldMapping field="envelopefrom" source="[envelopeFrom]" />
+			<fieldMapping field="envelopeto" source="[envelopeTo]" />
+			<fieldMapping field="subject" source="[subject]" />
+			<fieldMapping field="contents" source="[body]" />
+		</databaseStore>
+	</rule>
+	
+	<!--  Log all emails sent to mssql@domain.org in an MS SQL Server DB -->
+	<rule name="Rule-MSSqlServerDB" envelopeToRex="mssql@domain\.org">
+		<databaseStore connectionString="jdbc:jtds:sqlserver://SERVER/DATABASE;user=XXX;password=YYY" tableName="EmailLog">
+			<fieldMapping field="EnvelopeFrom" source="[envelopeFrom]" />
+			<fieldMapping field="EnvelopeTo" source="[envelopeTo]" />
+			<fieldMapping field="Subject" source="[subject]" />
+			<fieldMapping field="contents" source="[body]" />
+		</databaseStore>
+	</rule>
+	
+	<!-- Decrypt PGP email attachments sent to decrypt@domain.org and save on file system -->
+	<rule name="Rule-DecryptPGP" envelopeToRex="decrypt@domain\.org">
+		<attachment fileNameRex="\.pgp$" destinationFilePath="/var/raston/temp/[fileName]">
+			<decryptFile destinationFilePath="/var/raston/temp/[fileName.noExt]" passPhrase="XXX" />
+			<copyFile destinationFilePath="/var/raston/[fileName]" />
+			<delete path="/var/raston/temp" />
+		</attachment>
+	</rule>
+</root>
